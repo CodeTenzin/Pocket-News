@@ -1,0 +1,65 @@
+title GNews (apiKey) x Pocket (3LO Auth 2.
+
+alt User and server are each independently contacting GNews and Pocket (there is no middle-man). Both Api's are run in a synchronous manner.
+end
+
+participant GNews API
+participant Pocket API
+participant User
+participant Server
+
+
+note over User: Browser request \nroot if site
+User->(1)Server: GET / \nHost:localhost:3000
+Server->(1)User: 200 OK + index.html (form to fill out)
+
+note over User: User fills out form (supplies data: **news**)
+User->(1)Server: GET /search?news=Taylor+Swift \nHost: localhost:3000
+
+
+Server->(1)Pocket API:POST /v3/oauth/request?consumer_key=${consumer_key}\n&redirect_uri=${redirect_uri} \nHost: getpocket.com \n\n(Got to Pocket to retrieve an access token that will identify \nyour application account)
+
+Pocket API->(1)Server: 200 OK + code 
+
+Server->(1)User: 302 Temporary Redirect \nLoation: https://getpocket.com/auth/authorize?\nrequest_token=${request_token}&redirect_uri=\n${redirect_uri} \n\n(Got to Pocket API to login and grant app permission \to interact \nwith it - adding news url)
+
+note over User:(Browser sees 302, \nCreates a new POST request \nto Pocket API forwarding the request token.)
+
+alt This can be shortcircuited if the user is already logged in and has already granted permission
+User->(1)Pocket API: POST /auth/authorize?request_token=${request_token}\n&redirect_uri=${redirect_uri} \nHOST: https://getpocket.com
+
+
+Pocket API->(1)User: 200 OK + login form
+User->(1)Pocket API: User Logs in
+Pocket API->(1)User:200 OK + Ask if you want to grant access \npermissions to the app identified by ${request_token} 
+User->(1)Pocket API: User says yes
+end
+
+Pocket API->(1)Server: 302 Temporary Redirect \nLocation:localhost:3000/receive_code \n\n(Redirect user back to Server)
+
+
+Server->(1)Pocket API: POST /v3/oauth/authorize?consumer_key=${consumer_key}\n&code={code} \nHost: getpocket.com \n\n(Sends the consumer_key and code to get the access token. \nThe 2 component tells the API \n**consumer_key**: identifies your Pocket API \n**code**: token request that associates the user's session or other \npersistent state)
+
+Pocket API->(1)Server:200 OK + access_token + username
+
+Server->(1)GNews API: GET /api/v4/search?token=${token}&q=${q}&country=${country}&max=${max}&lang=${lang} \nHost: https://gnews.io \n\n(Sends the 5 components to the Api to get a more filtered search result \nThe 5 components tells the API \n**token**: identifies your application \n**q**: the keyword for the news search \n**country**: where the article was published \n**max**: the number of search results returned \n**lang**: the language the results are returned in)
+
+
+GNews API->(1)Server: 200 OK + metadata about news results \n(including URL of news)
+
+Server->(1)User: 302 Temporary Redirect \nLocation: https://getpocket.com/v3/add?url=${url}&consumer_key=${consumer_key}&access_token=${access_token} \n(Redirect to URL of saved news page on Pocket website)
+
+
+note over User: (Browser sees 302, \nCreates a new POST request to Todoist)
+
+User->(1)Pocket API: POST /v3/add?url=${url}&consumer_key=${consumer_key}\n&access_token=${access_token \nHost: https://getpocket.com
+
+Pocket API->(1)User: 200 OK + (display task)
+
+
+
+
+
+
+
+
